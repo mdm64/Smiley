@@ -72,6 +72,9 @@ export default function ListingRow({ listing, hostels }: { listing: Listing; hos
             </button>
           </>
         )}
+        <Link className="btn" href={`/listing/${listing.id}/edit`}>
+          Edit
+        </Link>
         <button
           className="btn danger"
           disabled={pending}
