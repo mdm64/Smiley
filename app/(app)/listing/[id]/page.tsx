@@ -1,8 +1,7 @@
 import Link from 'next/link';
 import { notFound } from 'next/navigation';
 import { createClient, currentProfile } from '@/lib/supabase/server';
-import { rupees, priceLabel, modeChip, timeAgo } from '@/lib/format';
-import { initials } from '@/components/shell';
+import { rupees, priceLabel, modeChip, timeAgo, initials } from '@/lib/format';
 import SaveButton from '@/components/save-button';
 import Gallery from './gallery';
 import ContactPanel from './contact';
