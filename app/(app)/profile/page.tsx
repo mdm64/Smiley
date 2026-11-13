@@ -1,7 +1,7 @@
 import Link from 'next/link';
 import { createClient, currentProfile } from '@/lib/supabase/server';
 import { saveProfile, signOut } from './actions';
-import { initials } from '@/components/shell';
+import { initials } from '@/lib/format';
 import ListingRow from './listing-row';
 import { Shield } from '@/components/icons';
 import type { Hostel, Listing } from '@/lib/types';
