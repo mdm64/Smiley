@@ -76,7 +76,9 @@ export default function SellForm({ hostels, defaultHostel }: { hostels: Hostel[]
 
   async function upload(files: FileList | null) {
     if (!files?.length) return;
-    if (images.length + files.length > 4) {
+    // Copy now: the input is cleared right after this call, which empties the live FileList.
+    const picked = Array.from(files);
+    if (images.length + picked.length > 4) {
       setError('Four photos is plenty.');
       return;
     }
@@ -88,7 +90,7 @@ export default function SellForm({ hostels, defaultHostel }: { hostels: Hostel[]
       if (!user) throw new Error('Your session expired. Sign in again.');
 
       const urls: string[] = [];
-      for (const file of Array.from(files)) {
+      for (const file of picked) {
         const blob = await shrink(file, 1400, 0.72);
         const path = `${user.id}/${crypto.randomUUID()}.jpg`;
         const { error: upErr } = await supabase.storage
