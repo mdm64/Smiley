@@ -21,11 +21,7 @@ export type Draft = {
   image_urls: string[];
 };
 
-export async function publishListing(draft: Draft): Promise<{ error: string } | never> {
-  const supabase = await createClient();
-  const { data: { user } } = await supabase.auth.getUser();
-  if (!user) return { error: 'Your session expired. Sign in again.' };
-
+function validate(draft: Draft): { error: string } | { row: Record<string, unknown> } {
   const title = draft.title.trim();
   if (title.length < 3) return { error: 'Give the item a title.' };
 
@@ -46,16 +42,14 @@ export async function publishListing(draft: Draft): Promise<{ error: string } | 
   if (rents && draft.rate <= 0) return { error: 'Set a rental rate.' };
   if (!draft.pickup.trim()) return { error: 'Say when the item can be collected.' };
 
-  const { data, error } = await supabase
-    .from('listings')
-    .insert({
-      seller_id: user.id,
+  return {
+    row: {
       title,
       category: draft.category,
       description: draft.description.trim(),
       condition: draft.condition,
       mode: draft.mode,
-      price: draft.mode === 'free' ? 0 : Math.max(0, Math.round(draft.price)),
+      price: draft.mode === 'free' ? 0 : sells ? Math.max(0, Math.round(draft.price)) : 0,
       rate: rents ? Math.max(0, Math.round(draft.rate)) : 0,
       unit: draft.unit,
       deposit: rents ? Math.max(0, Math.round(draft.deposit)) : 0,
@@ -63,7 +57,21 @@ export async function publishListing(draft: Draft): Promise<{ error: string } | 
       pickup: draft.pickup.trim(),
       attributes: draft.attributes,
       image_urls: draft.image_urls,
-    })
+    },
+  };
+}
+
+export async function publishListing(draft: Draft): Promise<{ error: string } | never> {
+  const supabase = await createClient();
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) return { error: 'Your session expired. Sign in again.' };
+
+  const checked = validate(draft);
+  if ('error' in checked) return checked;
+
+  const { data, error } = await supabase
+    .from('listings')
+    .insert({ seller_id: user.id, ...checked.row })
     .select('id')
     .single();
 
@@ -72,4 +80,28 @@ export async function publishListing(draft: Draft): Promise<{ error: string } | 
   revalidatePath('/browse');
   revalidatePath('/profile');
   redirect(`/listing/${data.id}`);
+}
+
+export async function updateListing(id: string, draft: Draft): Promise<{ error: string } | never> {
+  const supabase = await createClient();
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) return { error: 'Your session expired. Sign in again.' };
+
+  const checked = validate(draft);
+  if ('error' in checked) return checked;
+
+  const { data, error } = await supabase
+    .from('listings')
+    .update(checked.row)
+    .eq('id', id)
+    .eq('seller_id', user.id)
+    .select('id');
+
+  if (error) return { error: 'That did not save. Check your connection and try again.' };
+  if (!data?.length) return { error: 'You can only edit your own listings.' };
+
+  revalidatePath('/browse');
+  revalidatePath('/profile');
+  revalidatePath(`/listing/${id}`);
+  redirect(`/listing/${id}`);
 }
