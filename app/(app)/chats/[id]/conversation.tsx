@@ -5,7 +5,7 @@ import { useEffect, useRef, useState } from 'react';
 import { createClient } from '@/lib/supabase/client';
 import { sendMessage } from '@/app/(app)/actions';
 import { rupees, priceLabel } from '@/lib/format';
-import { initials } from '@/components/shell';
+import { initials } from '@/lib/format';
 import { Send, Image as ImageIcon } from '@/components/icons';
 import type { Listing, Message, Profile } from '@/lib/types';
 
