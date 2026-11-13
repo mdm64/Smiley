@@ -5,13 +5,7 @@ import { usePathname, useRouter, useSearchParams } from 'next/navigation';
 import { useState } from 'react';
 import { Loop, Home, Heart, Chat, User, Plus, Search } from '@/components/icons';
 import type { Profile } from '@/lib/types';
-
-export function initials(name: string, email: string) {
-  const source = (name || email.split('@')[0] || '?').trim();
-  const parts = source.split(/[\s._-]+/).filter(Boolean);
-  const letters = parts.length > 1 ? parts[0][0] + parts[1][0] : source.slice(0, 2);
-  return letters.toUpperCase();
-}
+import { initials } from '@/lib/format';
 
 export default function Shell({
   profile,
