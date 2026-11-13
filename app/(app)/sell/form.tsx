@@ -2,7 +2,7 @@
 
 import { useState, useTransition } from 'react';
 import { createClient } from '@/lib/supabase/client';
-import { publishListing } from './actions';
+import { publishListing, updateListing, type Draft } from './actions';
 import { CATEGORIES, CONDITIONS, CONDITION_NOTE, blockedReason, type Hostel, type Mode } from '@/lib/types';
 import { Image as ImageIcon } from '@/components/icons';
 
@@ -50,25 +50,36 @@ function shrink(file: File, maxPx: number, quality: number): Promise<Blob> {
   });
 }
 
-export default function SellForm({ hostels, defaultHostel }: { hostels: Hostel[]; defaultHostel: string | null }) {
+export default function SellForm({
+  hostels,
+  defaultHostel,
+  listingId,
+  initial,
+}: {
+  hostels: Hostel[];
+  defaultHostel: string | null;
+  listingId?: string;
+  initial?: Draft;
+}) {
+  const editing = Boolean(listingId && initial);
   const [step, setStep] = useState(1);
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   const [pending, start] = useTransition();
 
-  const [images, setImages] = useState<string[]>([]);
-  const [title, setTitle] = useState('');
-  const [category, setCategory] = useState('');
-  const [description, setDescription] = useState('');
-  const [condition, setCondition] = useState('Good');
-  const [extras, setExtras] = useState<Record<string, string>>({});
-  const [mode, setMode] = useState<Mode>('sell');
-  const [price, setPrice] = useState('');
-  const [rate, setRate] = useState('');
-  const [unit, setUnit] = useState('day');
-  const [deposit, setDeposit] = useState('');
-  const [hostel, setHostel] = useState(defaultHostel ?? '');
-  const [pickup, setPickup] = useState('');
+  const [images, setImages] = useState<string[]>(initial?.image_urls ?? []);
+  const [title, setTitle] = useState(initial?.title ?? '');
+  const [category, setCategory] = useState(initial?.category ?? '');
+  const [description, setDescription] = useState(initial?.description ?? '');
+  const [condition, setCondition] = useState(initial?.condition ?? 'Good');
+  const [extras, setExtras] = useState<Record<string, string>>(initial?.attributes ?? {});
+  const [mode, setMode] = useState<Mode>(initial?.mode ?? 'sell');
+  const [price, setPrice] = useState(initial?.price ? String(initial.price) : '');
+  const [rate, setRate] = useState(initial?.rate ? String(initial.rate) : '');
+  const [unit, setUnit] = useState(initial?.unit ?? 'day');
+  const [deposit, setDeposit] = useState(initial?.deposit ? String(initial.deposit) : '');
+  const [hostel, setHostel] = useState(editing ? (initial?.hostel_id ?? '') : (defaultHostel ?? ''));
+  const [pickup, setPickup] = useState(initial?.pickup ?? '');
 
   const fields = EXTRA_FIELDS[category] ?? DEFAULT_FIELDS;
   const sells = mode === 'sell' || mode === 'both';
@@ -130,7 +141,7 @@ export default function SellForm({ hostels, defaultHostel }: { hostels: Hostel[]
     setError(null);
     if (!pickup.trim()) return setError('Say when someone can collect it.');
     start(async () => {
-      const result = await publishListing({
+      const draft: Draft = {
         title,
         category,
         description,
@@ -144,7 +155,8 @@ export default function SellForm({ hostels, defaultHostel }: { hostels: Hostel[]
         pickup,
         attributes: extras,
         image_urls: images,
-      });
+      };
+      const result = editing ? await updateListing(listingId!, draft) : await publishListing(draft);
       if (result?.error) setError(result.error);
     });
   }
@@ -372,7 +384,7 @@ export default function SellForm({ hostels, defaultHostel }: { hostels: Hostel[]
           </button>
         ) : (
           <button type="button" className="btn primary" onClick={publish} disabled={pending}>
-            {pending ? 'Publishing…' : 'Publish listing'}
+            {pending ? (editing ? 'Saving…' : 'Publishing…') : editing ? 'Save changes' : 'Publish listing'}
           </button>
         )}
       </div>
