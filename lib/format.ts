@@ -50,3 +50,10 @@ export function timeAgo(iso: string) {
   if (days < 30) return `${days}d ago`;
   return new Date(iso).toLocaleDateString('en-IN', { day: 'numeric', month: 'short' });
 }
+
+export function initials(name: string, email: string) {
+  const source = (name || email.split('@')[0] || '?').trim();
+  const parts = source.split(/[\s._-]+/).filter(Boolean);
+  const letters = parts.length > 1 ? parts[0][0] + parts[1][0] : source.slice(0, 2);
+  return letters.toUpperCase();
+}
