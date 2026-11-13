@@ -142,9 +142,14 @@ export default async function ListingPage({ params }: { params: Promise<{ id: st
           </div>
 
           {mine ? (
-            <Link className="btn wide" href="/profile">
-              Manage this listing
-            </Link>
+            <div style={{ display: 'grid', gap: 8 }}>
+              <Link className="btn primary wide" href={`/listing/${listing.id}/edit`}>
+                Edit this listing
+              </Link>
+              <Link className="btn wide" href="/profile">
+                Manage this listing
+              </Link>
+            </div>
           ) : listing.status !== 'active' ? (
             <div className="note">This item has been marked as no longer available.</div>
           ) : (
