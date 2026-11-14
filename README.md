@@ -37,7 +37,7 @@ Make a new empty repository on GitHub, then follow the two lines it shows you
 ### 3. Create the tables
 
 1. In your project, open **SQL Editor** → **New query**.
-2. Open `supabase/schema.sql` from this repo, copy the whole file, paste it in.
+2. Open `supabase/schema.sql` from this repo, copy the whole file, paste it in. Then do the same with `supabase/trust-and-deals.sql` (recorded deals, feedback, the wanted board, privacy and rental reminders).
 3. Press **Run**.
 
 You should see "Success. No rows returned." That one file creates every table, every security
@@ -191,6 +191,7 @@ app/login             the OTP flow
 lib/domain.ts         the IIT Delhi rule
 lib/rental.ts         rental quotes and date overlap
 supabase/schema.sql   every table, policy and trigger
+supabase/trust-and-deals.sql   deals, feedback, wanted board, phone privacy, rental reminders (run second)
 tests/                the gate and the maths
 ```
 
