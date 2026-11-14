@@ -3,10 +3,12 @@ import { notFound } from 'next/navigation';
 import { createClient, currentProfile } from '@/lib/supabase/server';
 import { rupees, priceLabel, modeChip, timeAgo, initials } from '@/lib/format';
 import SaveButton from '@/components/save-button';
+import ShareButton from '@/components/share-button';
+import { reputation } from '@/lib/deals';
 import Gallery from './gallery';
 import ContactPanel from './contact';
 import { Pin, Image as ImageIcon } from '@/components/icons';
-import type { Hostel, Listing, Profile } from '@/lib/types';
+import type { Hostel, Listing, Profile, UserStats } from '@/lib/types';
 
 export const dynamic = 'force-dynamic';
 
@@ -19,7 +21,7 @@ export default async function ListingPage({ params }: { params: Promise<{ id: st
   if (!data) notFound();
   const listing = data as Listing;
 
-  const [{ data: sellerData }, { data: hostelData }, { data: savedRow }, { data: convo }] =
+  const [{ data: sellerData }, { data: hostelData }, { data: savedRow }, { data: convo }, { data: statsRow }] =
     await Promise.all([
       supabase.from('profiles').select('*').eq('id', listing.seller_id).maybeSingle(),
       supabase.from('hostels').select('*').order('sort_order'),
@@ -35,7 +37,9 @@ export default async function ListingPage({ params }: { params: Promise<{ id: st
         .eq('listing_id', id)
         .eq('buyer_id', me.id)
         .maybeSingle(),
+      supabase.from('user_stats').select('*').eq('user_id', listing.seller_id).maybeSingle(),
     ]);
+  const rep = reputation(statsRow as UserStats | null);
 
   const seller = sellerData as Profile | null;
   const hostels = (hostelData ?? []) as Hostel[];
@@ -131,15 +135,16 @@ export default async function ListingPage({ params }: { params: Promise<{ id: st
             </div>
           </dl>
 
-          <div className="seller">
+          <Link href={`/u/${listing.seller_id}`} className="seller">
             <span className="avatar">{initials(seller?.display_name ?? '', seller?.email ?? '?')}</span>
             <div>
               <b>{mine ? 'You' : seller?.display_name || 'An IIT Delhi student'}</b>
               <div className="small muted">
-                {mine ? 'This is your listing' : `Verified ${seller?.email?.split('@')[1] ?? 'iitd.ac.in'} account`}
+                {mine ? 'This is your listing · ' : 'Verified IIT Delhi account · '}
+                {rep.text}
               </div>
             </div>
-          </div>
+          </Link>
 
           {mine ? (
             <div style={{ display: 'grid', gap: 8 }}>
@@ -166,6 +171,11 @@ export default async function ListingPage({ params }: { params: Promise<{ id: st
               title={listing.title}
             />
           )}
+
+          <ShareButton
+            path={`/listing/${listing.id}`}
+            message={`${listing.title} — ${price.value}${price.suffix ? ' ' + price.suffix : ''} at IIT Delhi. Found on ReLoop, the student marketplace:`}
+          />
 
           <p className="small muted">
             ReLoop never takes payment or holds a deposit. Look at the item, then pay the student
