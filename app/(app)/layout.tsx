@@ -1,11 +1,13 @@
 import { Suspense } from 'react';
-import { redirect } from 'next/navigation';
 import { createClient, currentProfile } from '@/lib/supabase/server';
 import Shell from '@/components/shell';
+import PublicShell from '@/components/public-shell';
 
 export default async function AppLayout({ children }: { children: React.ReactNode }) {
   const profile = await currentProfile();
-  if (!profile) redirect('/login');
+  // Signed-out visitors only reach the open pages (browse, one listing); middleware sends them
+  // everywhere else to the login page.
+  if (!profile) return <PublicShell>{children}</PublicShell>;
 
   const supabase = await createClient();
 
