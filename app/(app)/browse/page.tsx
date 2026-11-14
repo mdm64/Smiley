@@ -19,7 +19,7 @@ type Search = {
 
 export default async function Browse({ searchParams }: { searchParams: Promise<Search> }) {
   const params = await searchParams;
-  const profile = (await currentProfile())!;
+  const profile = await currentProfile(); // null when someone is just looking
   const supabase = await createClient();
 
   let query = supabase.from('listings').select('*').eq('status', 'active');
@@ -42,7 +42,9 @@ export default async function Browse({ searchParams }: { searchParams: Promise<S
   const [{ data: listingData }, { data: hostelData }, { data: savedData }, { data: doneCount }] = await Promise.all([
     query.limit(200),
     supabase.from('hostels').select('*').order('sort_order'),
-    supabase.from('saved_items').select('listing_id').eq('profile_id', profile.id),
+    profile
+      ? supabase.from('saved_items').select('listing_id').eq('profile_id', profile.id)
+      : Promise.resolve({ data: [] as { listing_id: string }[] }),
     supabase.rpc('completed_deal_count'),
   ]);
   const done = Number(doneCount ?? 0);
@@ -59,11 +61,11 @@ export default async function Browse({ searchParams }: { searchParams: Promise<S
   }
 
   const filtering = Boolean(params.q || params.category || params.mode || params.max || params.hostel);
-  const myHostel = hostels.find((h) => h.id === profile.hostel_id);
+  const myHostel = hostels.find((h) => h.id === profile?.hostel_id);
 
   // The organising idea: sort by how far you would have to walk, not by a flat grid.
   const bands: Record<Band, Listing[]> = { here: [], near: [], campus: [] };
-  for (const l of listings) bands[distanceBand(l.hostel_id, profile.hostel_id, hostels)].push(l);
+  for (const l of listings) bands[distanceBand(l.hostel_id, profile?.hostel_id ?? null, hostels)].push(l);
 
   const order: Band[] = ['here', 'near', 'campus'];
   const anything = listings.length > 0;
@@ -73,9 +75,11 @@ export default async function Browse({ searchParams }: { searchParams: Promise<S
       <div className="page-head">
         <h1>{params.q ? `“${params.q}”` : 'What your campus is letting go of'}</h1>
         <p>
-          {profile.hostel_id
-            ? 'Closest first, so you know what is a two-minute walk and what is a cycle ride.'
-            : 'Add your hostel in your profile and this sorts itself by how far you have to walk.'}
+          {!profile
+            ? 'Have a look around. Sign in with your IIT Delhi email when you want to message a seller.'
+            : profile.hostel_id
+              ? 'Closest first, so you know what is a two-minute walk and what is a cycle ride.'
+              : 'Add your hostel in your profile and this sorts itself by how far you have to walk.'}
         </p>
       </div>
 
@@ -91,9 +95,15 @@ export default async function Browse({ searchParams }: { searchParams: Promise<S
         ) : (
           <span>Just launched at IIT Delhi — the first exchange on ReLoop could be yours.</span>
         )}
-        <Link href="/wanted" className="trust-link">
-          <Compass size={15} /> Wanted board
-        </Link>
+        {profile ? (
+          <Link href="/wanted" className="trust-link">
+            <Compass size={15} /> Wanted board
+          </Link>
+        ) : (
+          <Link href="/login?next=/browse" className="trust-link">
+            Sign in
+          </Link>
+        )}
       </div>
 
       <Filters hostels={hostels} />
@@ -135,7 +145,7 @@ export default async function Browse({ searchParams }: { searchParams: Promise<S
             </div>
             <div className="grid">
               {items.map((l) => (
-                <ListingCard key={l.id} listing={l} hostels={hostels} saved={saved.has(l.id)} />
+                <ListingCard key={l.id} listing={l} hostels={hostels} saved={saved.has(l.id)} publicView={!profile} />
               ))}
             </div>
           </section>
