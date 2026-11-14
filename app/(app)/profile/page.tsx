@@ -2,9 +2,10 @@ import Link from 'next/link';
 import { createClient, currentProfile } from '@/lib/supabase/server';
 import { saveProfile, signOut } from './actions';
 import { initials } from '@/lib/format';
+import { reputation } from '@/lib/deals';
 import ListingRow from './listing-row';
 import { Shield } from '@/components/icons';
-import type { Hostel, Listing } from '@/lib/types';
+import type { Hostel, Listing, UserStats } from '@/lib/types';
 
 export const dynamic = 'force-dynamic';
 
@@ -12,10 +13,13 @@ export default async function ProfilePage() {
   const me = (await currentProfile())!;
   const supabase = await createClient();
 
-  const [{ data: hostelData }, { data: mine }] = await Promise.all([
+  const [{ data: hostelData }, { data: mine }, { data: statsRow }, { data: priv }] = await Promise.all([
     supabase.from('hostels').select('*').order('sort_order'),
     supabase.from('listings').select('*').eq('seller_id', me.id).order('created_at', { ascending: false }),
+    supabase.from('user_stats').select('*').eq('user_id', me.id).maybeSingle(),
+    supabase.from('profile_private').select('phone').eq('id', me.id).maybeSingle(),
   ]);
+  const rep = reputation(statsRow as UserStats | null);
 
   const hostels = (hostelData ?? []) as Hostel[];
   const listings = (mine ?? []) as Listing[];
@@ -35,6 +39,9 @@ export default async function ProfilePage() {
           <span className="chip rent" style={{ marginTop: 7 }}>
             <Shield size={13} /> Verified institute address
           </span>
+          <div className="small muted" style={{ marginTop: 7 }}>
+            <Link href={`/u/${me.id}`}>{rep.text}</Link>
+          </div>
         </div>
         <form action={signOut} style={{ marginLeft: 'auto' }}>
           <button className="btn">Sign out</button>
@@ -77,31 +84,27 @@ export default async function ProfilePage() {
             <input name="display_name" defaultValue={me.display_name} maxLength={60} placeholder="How you sign off" />
           </label>
 
-          <div className="row2">
-            <label className="field">
-              <span>Hostel</span>
-              <select name="hostel_id" defaultValue={me.hostel_id ?? ''}>
-                <option value="">Not in a hostel</option>
-                {hostels.map((h) => (
-                  <option key={h.id} value={h.id}>
-                    {h.name}
-                  </option>
-                ))}
-              </select>
-            </label>
-            <label className="field">
-              <span>
-                Room <em>— kept private</em>
-              </span>
-              <input name="room_no" defaultValue={me.room_no ?? ''} maxLength={20} />
-            </label>
-          </div>
+          <label className="field">
+            <span>Hostel</span>
+            <select name="hostel_id" defaultValue={me.hostel_id ?? ''}>
+              <option value="">Not in a hostel</option>
+              {hostels.map((h) => (
+                <option key={h.id} value={h.id}>
+                  {h.name}
+                </option>
+              ))}
+            </select>
+          </label>
 
           <label className="field">
             <span>
-              Phone <em>— optional, shown only to someone you are already chatting with</em>
+              Phone <em>— optional</em>
             </span>
-            <input name="phone" defaultValue={me.phone ?? ''} maxLength={20} placeholder="+91" />
+            <input name="phone" defaultValue={priv?.phone ?? ''} maxLength={20} placeholder="+91" />
+            <span className="small muted" style={{ fontWeight: 400, marginTop: 5 }}>
+              Never shown on your profile or in listings. The other person sees it only once the two of
+              you have recorded a deal. We do not ask for your room number at all.
+            </span>
           </label>
 
           <button className="btn primary">Save details</button>
