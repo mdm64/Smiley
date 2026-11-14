@@ -3,6 +3,7 @@ import { createClient, currentProfile } from '@/lib/supabase/server';
 import ListingCard from '@/components/listing-card';
 import Filters from './filters';
 import { distanceBand, BAND_COPY, type Band } from '@/lib/format';
+import { Shield, Compass } from '@/components/icons';
 import type { Hostel, Listing } from '@/lib/types';
 
 export const dynamic = 'force-dynamic';
@@ -38,11 +39,13 @@ export default async function Browse({ searchParams }: { searchParams: Promise<S
         ? query.order('price', { ascending: false })
         : query.order('created_at', { ascending: false });
 
-  const [{ data: listingData }, { data: hostelData }, { data: savedData }] = await Promise.all([
+  const [{ data: listingData }, { data: hostelData }, { data: savedData }, { data: doneCount }] = await Promise.all([
     query.limit(200),
     supabase.from('hostels').select('*').order('sort_order'),
     supabase.from('saved_items').select('listing_id').eq('profile_id', profile.id),
+    supabase.rpc('completed_deal_count'),
   ]);
+  const done = Number(doneCount ?? 0);
 
   const hostels = (hostelData ?? []) as Hostel[];
   const saved = new Set((savedData ?? []).map((s) => s.listing_id));
@@ -74,6 +77,23 @@ export default async function Browse({ searchParams }: { searchParams: Promise<S
             ? 'Closest first, so you know what is a two-minute walk and what is a cycle ride.'
             : 'Add your hostel in your profile and this sorts itself by how far you have to walk.'}
         </p>
+      </div>
+
+      <div className="trust">
+        <span className="trust-mark">
+          <Shield size={16} />
+        </span>
+        {done > 0 ? (
+          <span>
+            <b className="tnum">{done.toLocaleString('en-IN')}</b>{' '}
+            {done === 1 ? 'successful exchange' : 'successful exchanges'} between IIT Delhi students so far
+          </span>
+        ) : (
+          <span>Just launched at IIT Delhi — the first exchange on ReLoop could be yours.</span>
+        )}
+        <Link href="/wanted" className="trust-link">
+          <Compass size={15} /> Wanted board
+        </Link>
       </div>
 
       <Filters hostels={hostels} />
