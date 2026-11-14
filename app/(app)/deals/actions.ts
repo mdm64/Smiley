@@ -80,3 +80,51 @@ export async function leaveFeedback(
   );
   return result;
 }
+
+async function viaListing(fn: string, args: Record<string, unknown>): Promise<Result & { conversationId?: string }> {
+  const supabase = await createClient();
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) return { error: 'Your session expired. Sign in again.' };
+
+  const { data, error } = await supabase.rpc(fn, args);
+  if (error) return { error: friendly(error) };
+
+  revalidatePath('/profile');
+  revalidatePath('/browse');
+  revalidatePath('/chats');
+  return { conversationId: data as string };
+}
+
+/** "Mark sold" / "Mark given away": records who got it, so the two of you can leave feedback. */
+export async function sellTo(input: { listingId: string; buyerId: string; amount: number }) {
+  if (!input.buyerId) return { error: 'Choose who you sold it to.' };
+  return viaListing('sell_to', {
+    p_listing: input.listingId,
+    p_buyer: input.buyerId,
+    p_amount: Math.max(0, Math.round(Number(input.amount) || 0)),
+  });
+}
+
+/** "Rent out": records who has it and when it is due back. */
+export async function rentTo(input: {
+  listingId: string;
+  renterId: string;
+  amount: number;
+  deposit: number;
+  lateFee: number;
+  returnBy: string;
+}) {
+  if (!input.renterId) return { error: 'Choose who you rented it to.' };
+  const amount = Math.round(Number(input.amount) || 0);
+  if (amount <= 0) return { error: 'Enter the rent you agreed.' };
+  const when = Date.parse(input.returnBy);
+  if (!Number.isFinite(when) || when <= Date.now()) return { error: 'Pick a return time in the future.' };
+  return viaListing('rent_to', {
+    p_listing: input.listingId,
+    p_renter: input.renterId,
+    p_amount: amount,
+    p_return_by: new Date(when).toISOString(),
+    p_late_fee: Math.max(0, Math.round(Number(input.lateFee) || 0)),
+    p_deposit: Math.max(0, Math.round(Number(input.deposit) || 0)),
+  });
+}
