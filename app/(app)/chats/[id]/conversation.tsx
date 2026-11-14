@@ -1,6 +1,7 @@
 'use client';
 
 import Link from 'next/link';
+import { useRouter } from 'next/navigation';
 import { useEffect, useRef, useState } from 'react';
 import { createClient } from '@/lib/supabase/client';
 import { sendMessage } from '@/app/(app)/actions';
@@ -24,6 +25,8 @@ export default function Conversation({
   people,
   listings,
   initialMessages,
+  dealPanel,
+  otherStatsText,
 }: {
   me: Profile;
   threads: Thread[];
@@ -31,7 +34,10 @@ export default function Conversation({
   people: Profile[];
   listings: Listing[];
   initialMessages: Message[];
+  dealPanel?: React.ReactNode;
+  otherStatsText?: string;
 }) {
+  const router = useRouter();
   const [messages, setMessages] = useState<Message[]>(initialMessages);
   const [draft, setDraft] = useState('');
   const [offering, setOffering] = useState(false);
@@ -58,12 +64,18 @@ export default function Conversation({
           setMessages((prev) => (prev.some((m) => m.id === row.id) ? prev : [...prev, row]));
         },
       )
+      // A deal changing on the other side (confirmed, returned, cancelled) refreshes the panel.
+      .on(
+        'postgres_changes',
+        { event: '*', schema: 'public', table: 'deals', filter: `conversation_id=eq.${currentId}` },
+        () => router.refresh(),
+      )
       .subscribe();
 
     return () => {
       supabase.removeChannel(channel);
     };
-  }, [currentId]);
+  }, [currentId, router]);
 
   useEffect(() => {
     bottom.current?.scrollIntoView({ block: 'end' });
@@ -87,6 +99,7 @@ export default function Conversation({
       sender_id: me.id,
       body: text,
       offer_amount: offer ?? null,
+      is_auto: false,
       created_at: new Date().toISOString(),
     };
     setMessages((prev) => [...prev, optimistic]);
@@ -127,6 +140,7 @@ export default function Conversation({
           )}
           <div style={{ minWidth: 0 }}>
             <b>{other?.display_name || 'IIT Delhi student'}</b>
+            {otherStatsText && <div className="small muted">{otherStatsText}</div>}
             <div className="small muted">
               {listing ? (
                 <Link href={`/listing/${listing.id}`}>
@@ -142,12 +156,25 @@ export default function Conversation({
           </Link>
         </header>
 
+        {dealPanel}
+
         <div className="bubbles">
           {messages.length === 0 && (
             <p className="muted small">No messages yet. Open with what you want to know.</p>
           )}
           {messages.map((m) => {
             const mine = m.sender_id === me.id;
+            if (m.is_auto) {
+              return (
+                <div key={m.id} className="bubble auto">
+                  <span className="auto-tag">Automatic message</span>
+                  {m.body}
+                  <time>
+                    {new Date(m.created_at).toLocaleString([], { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' })}
+                  </time>
+                </div>
+              );
+            }
             return (
               <div
                 key={m.id}
