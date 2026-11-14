@@ -11,10 +11,11 @@ export async function saveProfile(formData: FormData) {
 
   const display_name = String(formData.get('display_name') ?? '').trim().slice(0, 60);
   const hostel_id = String(formData.get('hostel_id') ?? '') || null;
-  const room_no = String(formData.get('room_no') ?? '').trim().slice(0, 20) || null;
   const phone = String(formData.get('phone') ?? '').trim().slice(0, 20) || null;
 
-  await supabase.from('profiles').update({ display_name, hostel_id, room_no, phone }).eq('id', user.id);
+  await supabase.from('profiles').update({ display_name, hostel_id }).eq('id', user.id);
+  // The phone number lives in its own table that only its owner can read.
+  await supabase.from('profile_private').upsert({ id: user.id, phone });
 
   revalidatePath('/profile');
   revalidatePath('/browse');
