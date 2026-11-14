@@ -9,11 +9,13 @@ export default function ListingCard({
   hostels,
   saved,
   showStatus,
+  publicView,
 }: {
   listing: Listing;
   hostels: Hostel[];
   saved: boolean;
   showStatus?: boolean;
+  publicView?: boolean;
 }) {
   const price = priceLabel(listing);
   const chip = modeChip(listing.mode);
@@ -34,7 +36,7 @@ export default function ListingCard({
       </Link>
 
       <span className={`chip ${chip.cls} flag`}>{showStatus && gone ? statusWord(listing.status) : chip.text}</span>
-      <SaveButton listingId={listing.id} saved={saved} title={listing.title} />
+      {!publicView && <SaveButton listingId={listing.id} saved={saved} title={listing.title} />}
 
       <div className="body">
         <Link href={`/listing/${listing.id}`}>
