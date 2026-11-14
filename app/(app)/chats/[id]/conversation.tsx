@@ -139,8 +139,14 @@ export default function Conversation({
             <span className="avatar">{initials(other?.display_name ?? '', other?.email ?? '?')}</span>
           )}
           <div style={{ minWidth: 0 }}>
-            <b>{other?.display_name || 'IIT Delhi student'}</b>
-            {otherStatsText && <div className="small muted">{otherStatsText}</div>}
+            <Link href={`/u/${otherId}`} title="See their profile and feedback">
+              <b>{other?.display_name || 'IIT Delhi student'}</b>
+            </Link>
+            {otherStatsText && (
+              <div className="small muted">
+                <Link href={`/u/${otherId}`}>{otherStatsText} · view profile</Link>
+              </div>
+            )}
             <div className="small muted">
               {listing ? (
                 <Link href={`/listing/${listing.id}`}>
