@@ -26,7 +26,11 @@ export async function middleware(request: NextRequest) {
   const { data: { user } } = await supabase.auth.getUser();
 
   const { pathname } = request.nextUrl;
-  const isPublic = PUBLIC_PATHS.some((p) => pathname.startsWith(p));
+  // Browsing is open so a link shared on WhatsApp shows the item before anyone signs in.
+  const isPublic =
+    PUBLIC_PATHS.some((p) => pathname.startsWith(p)) ||
+    pathname === '/browse' ||
+    /^\/listing\/[^/]+$/.test(pathname);
 
   if (!user && !isPublic) {
     const url = request.nextUrl.clone();
