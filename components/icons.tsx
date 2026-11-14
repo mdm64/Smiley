@@ -57,3 +57,12 @@ export const Image = ({ size = 22, className }: P) => (
     <path d="M3 5h18v14H3Zm0 10 5-4 4 3 3-3 6 5" /><circle cx="8.5" cy="9" r="1.4" />
   </svg>
 );
+
+export const Share = ({ size = 17, className }: P) => (
+  <svg {...base(size)} className={className}>
+    <circle cx="6" cy="12" r="2.4" />
+    <circle cx="17.5" cy="6" r="2.4" />
+    <circle cx="17.5" cy="18" r="2.4" />
+    <path d="M8.2 10.9l7.1-3.7M8.2 13.1l7.1 3.7" />
+  </svg>
+);
