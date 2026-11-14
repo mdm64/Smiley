@@ -3,7 +3,7 @@
 import Link from 'next/link';
 import { usePathname, useRouter, useSearchParams } from 'next/navigation';
 import { useState } from 'react';
-import { Loop, Home, Heart, Chat, User, Plus, Search } from '@/components/icons';
+import { Loop, Home, Heart, Chat, User, Plus, Search, Compass } from '@/components/icons';
 import type { Profile } from '@/lib/types';
 import { initials } from '@/lib/format';
 
@@ -27,6 +27,7 @@ export default function Shell({
 
   const nav = [
     { href: '/browse', label: 'Marketplace', Icon: Home, badge: 0, dot: false },
+    { href: '/wanted', label: 'Wanted', Icon: Compass, badge: 0, dot: false },
     { href: '/saved', label: 'Saved', Icon: Heart, badge: savedCount, dot: false },
     { href: '/chats', label: 'Chats', Icon: Chat, badge: unread, dot: true },
     { href: '/profile', label: 'You', Icon: User, badge: 0, dot: false },
