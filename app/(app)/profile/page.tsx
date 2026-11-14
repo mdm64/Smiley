@@ -21,6 +21,23 @@ export default async function ProfilePage() {
   ]);
   const rep = reputation(statsRow as UserStats | null);
 
+  // Who has chatted with me about each listing, so "Mark sold" can ask who bought it.
+  const listingIds = (mine ?? []).map((l) => l.id);
+  const { data: convoRows } = listingIds.length
+    ? await supabase.from('conversations').select('listing_id, buyer_id').eq('seller_id', me.id).in('listing_id', listingIds)
+    : { data: [] as { listing_id: string; buyer_id: string }[] };
+  const buyerIds = [...new Set((convoRows ?? []).map((c) => c.buyer_id))];
+  const { data: buyerRows } = buyerIds.length
+    ? await supabase.from('profiles').select('id, display_name, email').in('id', buyerIds)
+    : { data: [] as { id: string; display_name: string; email: string }[] };
+  const peopleFor = (listingId: string) =>
+    (convoRows ?? [])
+      .filter((c) => c.listing_id === listingId)
+      .map((c) => {
+        const b = buyerRows?.find((x) => x.id === c.buyer_id);
+        return { id: c.buyer_id, name: b?.display_name || b?.email?.split('@')[0] || 'IIT Delhi student' };
+      });
+
   const hostels = (hostelData ?? []) as Hostel[];
   const listings = (mine ?? []) as Listing[];
   const live = listings.filter((l) => l.status === 'active').length;
@@ -58,7 +75,7 @@ export default async function ProfilePage() {
         {listings.length ? (
           <div className="stack">
             {listings.map((l) => (
-              <ListingRow key={l.id} listing={l} hostels={hostels} />
+              <ListingRow key={l.id} listing={l} hostels={hostels} people={peopleFor(l.id)} />
             ))}
           </div>
         ) : (
