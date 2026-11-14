@@ -1,5 +1,6 @@
 import Link from 'next/link';
 import { notFound } from 'next/navigation';
+import type { Metadata } from 'next';
 import { createClient, currentProfile } from '@/lib/supabase/server';
 import { rupees, priceLabel, modeChip, timeAgo, initials } from '@/lib/format';
 import SaveButton from '@/components/save-button';
@@ -12,32 +13,47 @@ import type { Hostel, Listing, Profile, UserStats } from '@/lib/types';
 
 export const dynamic = 'force-dynamic';
 
+// What WhatsApp, Telegram and friends show when the link is pasted into a chat.
+export async function generateMetadata({ params }: { params: Promise<{ id: string }> }): Promise<Metadata> {
+  const { id } = await params;
+  const supabase = await createClient();
+  const { data } = await supabase.from('listings').select('*').eq('id', id).maybeSingle();
+  if (!data) return { title: 'ReLoop — the IIT Delhi campus marketplace' };
+  const l = data as Listing;
+  const price = priceLabel(l);
+  const title = `${l.title} — ${price.value}${price.suffix ? ' ' + price.suffix : ''}`;
+  const description = [l.condition, l.description].filter(Boolean).join(' · ').slice(0, 180) ||
+    'Second-hand, rented and free things from IIT Delhi students, on ReLoop.';
+  const image = l.image_urls[0];
+  return {
+    title: `${title} · ReLoop`,
+    description,
+    openGraph: { title, description, type: 'website', siteName: 'ReLoop', ...(image ? { images: [{ url: image }] } : {}) },
+    twitter: { card: image ? 'summary_large_image' : 'summary', title, description, ...(image ? { images: [image] } : {}) },
+  };
+}
+
 export default async function ListingPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
-  const me = (await currentProfile())!;
+  const me = await currentProfile(); // null when signed out
   const supabase = await createClient();
 
   const { data } = await supabase.from('listings').select('*').eq('id', id).maybeSingle();
   if (!data) notFound();
   const listing = data as Listing;
 
+  const none = Promise.resolve({ data: null });
   const [{ data: sellerData }, { data: hostelData }, { data: savedRow }, { data: convo }, { data: statsRow }] =
     await Promise.all([
-      supabase.from('profiles').select('*').eq('id', listing.seller_id).maybeSingle(),
+      me ? supabase.from('profiles').select('*').eq('id', listing.seller_id).maybeSingle() : none,
       supabase.from('hostels').select('*').order('sort_order'),
-      supabase
-        .from('saved_items')
-        .select('listing_id')
-        .eq('profile_id', me.id)
-        .eq('listing_id', id)
-        .maybeSingle(),
-      supabase
-        .from('conversations')
-        .select('id')
-        .eq('listing_id', id)
-        .eq('buyer_id', me.id)
-        .maybeSingle(),
-      supabase.from('user_stats').select('*').eq('user_id', listing.seller_id).maybeSingle(),
+      me
+        ? supabase.from('saved_items').select('listing_id').eq('profile_id', me.id).eq('listing_id', id).maybeSingle()
+        : none,
+      me
+        ? supabase.from('conversations').select('id').eq('listing_id', id).eq('buyer_id', me.id).maybeSingle()
+        : none,
+      me ? supabase.from('user_stats').select('*').eq('user_id', listing.seller_id).maybeSingle() : none,
     ]);
   const rep = reputation(statsRow as UserStats | null);
 
@@ -46,7 +62,7 @@ export default async function ListingPage({ params }: { params: Promise<{ id: st
   const hostel = hostels.find((h) => h.id === listing.hostel_id);
   const price = priceLabel(listing);
   const chip = modeChip(listing.mode);
-  const mine = listing.seller_id === me.id;
+  const mine = Boolean(me) && listing.seller_id === me!.id;
   const canRent = listing.mode === 'rent' || listing.mode === 'both';
   const canBuy = listing.mode === 'sell' || listing.mode === 'both' || listing.mode === 'free';
   const attributes = Object.entries(listing.attributes ?? {}).filter(([, v]) => v);
@@ -79,9 +95,11 @@ export default async function ListingPage({ params }: { params: Promise<{ id: st
               <span className={`chip ${chip.cls}`}>{chip.text}</span>
               <span className="chip">{listing.condition}</span>
               {listing.status !== 'active' && <span className="chip">No longer available</span>}
-              <span style={{ marginLeft: 'auto', position: 'relative', width: 30, height: 30 }}>
-                <SaveButton listingId={listing.id} saved={Boolean(savedRow)} title={listing.title} />
-              </span>
+              {me && (
+                <span style={{ marginLeft: 'auto', position: 'relative', width: 30, height: 30 }}>
+                  <SaveButton listingId={listing.id} saved={Boolean(savedRow)} title={listing.title} />
+                </span>
+              )}
             </div>
 
             <h1 style={{ fontSize: 'var(--step-2)' }}>{listing.title}</h1>
@@ -135,6 +153,7 @@ export default async function ListingPage({ params }: { params: Promise<{ id: st
             </div>
           </dl>
 
+          {me && (
           <Link href={`/u/${listing.seller_id}`} className="seller">
             <span className="avatar">{initials(seller?.display_name ?? '', seller?.email ?? '?')}</span>
             <div>
@@ -145,8 +164,19 @@ export default async function ListingPage({ params }: { params: Promise<{ id: st
               </div>
             </div>
           </Link>
+          )}
 
-          {mine ? (
+          {!me ? (
+            <div className="panel signin-cta">
+              <b>Interested?</b>
+              <span className="small muted">
+                Sign in with your IIT Delhi email to message the seller, make an offer and see their feedback.
+              </span>
+              <Link className="btn primary wide" href={`/login?next=/listing/${listing.id}`}>
+                Sign in to contact the seller
+              </Link>
+            </div>
+          ) : mine ? (
             <div style={{ display: 'grid', gap: 8 }}>
               <Link className="btn primary wide" href={`/listing/${listing.id}/edit`}>
                 Edit this listing
